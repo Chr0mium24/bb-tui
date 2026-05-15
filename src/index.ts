@@ -1,0 +1,13 @@
+import { Command } from 'commander';
+import { registerInit } from './commands/init.js';
+
+const program = new Command();
+
+program
+  .name('bb-tui')
+  .description('CLI for CUHK(SZ) Blackboard Learn')
+  .version('0.1.0');
+
+registerInit(program);
+
+program.parse();
