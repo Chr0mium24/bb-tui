@@ -4,41 +4,33 @@ import { t } from '../core/i18n.js';
 import { printTable, printJSON } from '../core/output.js';
 import type { OutputOptions } from '../core/output.js';
 
-interface ApiCourse {
-  id: string;
-  name: string;
-}
-
-interface ApiEnrollment {
-  course: ApiCourse;
-  availability: { available: 'Yes' | 'No' };
-}
-
-interface ApiGradeColumn {
-  id: string;
-  name: string;
-  contentId?: string;
-  score?: { possible?: number };
-  grading?: { type?: string; due?: string; attemptsAllowed?: number };
-}
-
-interface ApiAnnouncement {
-  id: string;
-  title: string;
-  created: string;
-}
-
 interface CalendarEvent {
-  date: string;       // YYYY-MM-DD
-  time: string;       // HH:MM or ''
-  type: string;       // 'Assignment' | 'Announcement'
-  course: string;
-  title: string;
   id: string;
-  detail?: string;
+  title: string;
+  start: string;
+  end: string;
+  eventType: string;
+  calendarName: string;
+  calendarId: string;
+  allDay: boolean;
+  attemptable: boolean;
+  location?: string;
+  description?: string;
+  color: string;
 }
 
-function parseDate(iso: string): { date: string; time: string } {
+function eventTypeLabel(type: string): string {
+  switch (type) {
+    case 'Assignment': return '作业';
+    case 'Test': return '测验';
+    case 'LTI Link': return 'LTI';
+    case 'Manual Grade Column': return '评分项';
+    case 'blackboard.data.calendar.CalendarEntry$Type:PERSONAL': return '个人';
+    default: return type;
+  }
+}
+
+function formatDateTime(iso: string): { date: string; time: string } {
   const d = new Date(iso);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -51,110 +43,54 @@ function parseDate(iso: string): { date: string; time: string } {
 export function registerCalendar(program: Command): void {
   program
     .command('calendar')
-    .description('Show upcoming deadlines and announcements across all courses')
+    .description('Show calendar events (assignments, tests, personal)')
     .option('--json', 'Output as JSON')
     .option('--course <course-id>', 'Filter by specific course')
-    .option('--days <n>', 'Show events within next N days', '30')
+    .option('--days <n>', 'Show events from N days ago to N days ahead', '120')
     .action(async (opts: OutputOptions & { course?: string; days?: string }) => {
-      const daysLimit = parseInt(opts.days ?? '30', 10);
-      const now = new Date();
-      const cutoff = new Date(now.getTime() + daysLimit * 24 * 60 * 60 * 1000);
+      const daysLimit = parseInt(opts.days ?? '120', 10);
+      // Wider window to include current semester events
+      const start = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+      const end = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
-      // Fetch courses
-      let courseIds: { id: string; name: string }[] = [];
-      if (opts.course) {
-        // Get course name
-        try {
-          const c = await apiGet(`/learn/api/public/v1/courses/${opts.course}`) as ApiCourse;
-          courseIds = [{ id: opts.course, name: c.name }];
-        } catch {
-          console.error('Course not found');
-          process.exit(1);
-        }
-      } else {
-        const enrollments = await apiGet('/learn/api/public/v1/users/me/courses?expand=course') as { results: ApiEnrollment[] };
-        courseIds = enrollments.results
-          .filter((e) => e.availability?.available === 'Yes')
-          .map((e) => ({ id: e.course.id, name: e.course.name }));
-      }
+      const startMs = start.getTime();
+      const endMs = end.getTime();
+      const courseId = opts.course ?? '';
 
-      // Gather events in parallel per course
-      const allEvents: CalendarEvent[] = [];
-      await Promise.all(
-        courseIds.map(async ({ id, name }) => {
-          // Gradebook columns (assignments with due dates)
-          try {
-            const grades = await apiGet(`/learn/api/public/v1/courses/${id}/gradebook/columns`) as { results: ApiGradeColumn[] };
-            for (const col of grades.results) {
-              if (col.grading?.due) {
-                const due = new Date(col.grading.due);
-                if (due >= now && due <= cutoff) {
-                  const { date, time } = parseDate(col.grading.due);
-                  allEvents.push({
-                    date,
-                    time,
-                    type: t('assignments.title'),
-                    course: name,
-                    title: col.name,
-                    id: col.contentId ?? col.id,
-                    detail: col.score?.possible ? `${t('common.possible')}: ${col.score.possible}` : undefined,
-                  });
-                }
-              }
-            }
-          } catch {
-            // skip
-          }
+      const events = await apiGet(
+        `/webapps/calendar/calendarData/selectedCalendarEvents?start=${startMs}&end=${endMs}&course_id=${courseId}&mode=personal`
+      ) as CalendarEvent[];
 
-          // Announcements (recent)
-          try {
-            const anns = await apiGet(`/learn/api/public/v1/courses/${id}/announcements`) as { results: ApiAnnouncement[] };
-            for (const a of anns.results) {
-              const created = new Date(a.created);
-              if (created >= new Date(now.getTime() - daysLimit * 24 * 60 * 60 * 1000) && created <= cutoff) {
-                const { date, time } = parseDate(a.created);
-                allEvents.push({
-                  date,
-                  time,
-                  type: t('announcements.title'),
-                  course: name,
-                  title: a.title,
-                  id: a.id,
-                });
-              }
-            }
-          } catch {
-            // skip
-          }
-        })
-      );
-
-      // Sort by date ascending
-      allEvents.sort((a, b) => {
-        const d = a.date.localeCompare(b.date);
-        if (d !== 0) return d;
-        return a.time.localeCompare(b.time);
-      });
-
-      if (allEvents.length === 0) {
+      if (events.length === 0) {
         console.log('No upcoming events');
         return;
       }
 
+      // Sort by start time
+      events.sort((a, b) => a.start.localeCompare(b.start));
+
       if (opts.json) {
-        printJSON(allEvents);
+        printJSON(events.map((e) => ({
+          id: e.id,
+          title: e.title,
+          date: formatDateTime(e.start).date,
+          time: formatDateTime(e.start).time,
+          endTime: formatDateTime(e.end).time,
+          type: eventTypeLabel(e.eventType),
+          course: e.calendarName,
+          allDay: e.allDay,
+          attemptable: e.attemptable,
+          location: e.location,
+        })));
         return;
       }
 
-      const headers = [t('common.date'), 'Time', 'Type', t('common.name'), 'Course', 'ID'];
-      const rows = allEvents.map((e) => [
-        e.date,
-        e.time,
-        e.type,
-        e.title,
-        e.course,
-        e.id,
-      ]);
+      const headers = [t('common.date'), 'Time', 'Type', t('common.name'), 'Course'];
+      const rows = events.map((e) => {
+        const { date, time } = formatDateTime(e.start);
+        const courseName = e.calendarId === 'PERSONAL' ? 'Personal' : e.calendarName;
+        return [date, e.allDay ? '全天' : time, eventTypeLabel(e.eventType), e.title, courseName];
+      });
       printTable(headers, rows);
     });
 }
