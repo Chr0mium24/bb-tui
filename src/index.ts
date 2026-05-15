@@ -6,6 +6,7 @@ import { registerAssignments } from './commands/assignments.js';
 import { registerGrades } from './commands/grades.js';
 import { registerMaterials } from './commands/materials.js';
 import { registerMenu } from './commands/menu.js';
+import { registerMembers } from './commands/members.js';
 
 const program = new Command();
 
@@ -21,5 +22,6 @@ registerAssignments(program);
 registerGrades(program);
 registerMaterials(program);
 registerMenu(program);
+registerMembers(program);
 
 program.parse();

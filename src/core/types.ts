@@ -2,6 +2,8 @@ export interface Course {
   id: string;
   name: string;
   courseId: string;
+  termId?: string;
+  termName?: string;
   availability: { available: 'Yes' | 'No' };
 }
 

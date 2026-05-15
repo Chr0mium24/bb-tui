@@ -27,6 +27,7 @@ function getType(handlerId: string): string {
     case 'resource/x-bb-file': return t('materials.file');
     case 'resource/x-bb-document': return t('materials.document');
     case 'resource/x-bb-externallink': return t('materials.link');
+    case 'resource/x-bb-assignment': return t('materials.assignment');
     default: return t('materials.unknown');
   }
 }
