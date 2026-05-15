@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { registerInit } from './commands/init.js';
 import { registerCourses } from './commands/courses.js';
 import { registerAnnouncements } from './commands/announcements.js';
+import { registerAssignments } from './commands/assignments.js';
 
 const program = new Command();
 
@@ -13,5 +14,6 @@ program
 registerInit(program);
 registerCourses(program);
 registerAnnouncements(program);
+registerAssignments(program);
 
 program.parse();
