@@ -1,0 +1,25 @@
+{
+  "name": "bb-tui",
+  "version": "0.1.0",
+  "description": "CLI for CUHK(SZ) Blackboard Learn",
+  "main": "dist/index.js",
+  "bin": {
+    "bb-tui": "bin/bb-tui"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["blackboard", "cuhk", "cli"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.0.0",
+    "cli-table3": "^0.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
