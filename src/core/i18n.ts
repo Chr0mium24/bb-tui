@@ -1,0 +1,71 @@
+import { loadConfig } from './config.js';
+
+type Lang = 'zh' | 'en';
+
+const dict: Record<Lang, Record<string, string>> = {
+  zh: {
+    'session.expired': '会话已过期，请运行：bb-tui init --cookie "新Cookie"',
+    'api.error': 'API 请求失败',
+    'courses.title': '课程列表',
+    'courses.empty': '没有可用课程',
+    'announcements.title': '公告',
+    'announcements.empty': '暂无公告',
+    'assignments.title': '作业',
+    'assignments.empty': '暂无作业',
+    'grades.title': '成绩',
+    'grades.empty': '暂无成绩',
+    'materials.title': '课程材料',
+    'materials.empty': '暂无课程材料',
+    'materials.folder': '📁 文件夹',
+    'materials.file': '📄 文件',
+    'materials.document': '📝 文档',
+    'materials.link': '🔗 链接',
+    'materials.unknown': '❓ 未知',
+    'materials.downloaded': '已下载',
+    'init.saved': '配置已保存',
+    'init.missing_cookie': '请提供 --cookie 参数',
+    'common.id': 'ID',
+    'common.name': '名称',
+    'common.date': '日期',
+    'common.due': '截止日期',
+    'common.score': '得分',
+    'common.possible': '满分',
+    'common.type': '类型',
+    'common.path': '路径',
+  },
+  en: {
+    'session.expired': 'Session expired. Run: bb-tui init --cookie "newCookie"',
+    'api.error': 'API request failed',
+    'courses.title': 'Courses',
+    'courses.empty': 'No available courses',
+    'announcements.title': 'Announcements',
+    'announcements.empty': 'No announcements',
+    'assignments.title': 'Assignments',
+    'assignments.empty': 'No assignments',
+    'grades.title': 'Grades',
+    'grades.empty': 'No grades',
+    'materials.title': 'Materials',
+    'materials.empty': 'No materials',
+    'materials.folder': '📁 Folder',
+    'materials.file': '📄 File',
+    'materials.document': '📝 Document',
+    'materials.link': '🔗 Link',
+    'materials.unknown': '❓ Unknown',
+    'materials.downloaded': 'Downloaded',
+    'init.saved': 'Config saved',
+    'init.missing_cookie': 'Please provide --cookie',
+    'common.id': 'ID',
+    'common.name': 'Name',
+    'common.date': 'Date',
+    'common.due': 'Due',
+    'common.score': 'Score',
+    'common.possible': 'Possible',
+    'common.type': 'Type',
+    'common.path': 'Path',
+  },
+};
+
+export function t(key: string): string {
+  const lang = loadConfig().lang;
+  return dict[lang]?.[key] ?? dict.en[key] ?? key;
+}
