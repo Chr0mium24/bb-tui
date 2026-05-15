@@ -78,6 +78,32 @@ async function resolveDownloadUrl(courseId: string, contentId: string): Promise<
   }
 }
 
+async function fetchAllContents(courseId: string): Promise<ApiContent[]> {
+  // First: fetch top-level contents without recursive=true (some courses forbid it)
+  const top = await apiGet(`/learn/api/public/v1/courses/${courseId}/contents?limit=100`) as { results: ApiContent[] };
+  const all: ApiContent[] = [...top.results];
+  const folders = top.results.filter(c => c.hasChildren && c.contentHandler?.id === 'resource/x-bb-folder');
+
+  // Then: BFS fetch children for each folder
+  const queue = folders.map(f => f.id);
+  while (queue.length > 0) {
+    const pid = queue.shift()!;
+    try {
+      const children = await apiGet(`/learn/api/public/v1/courses/${courseId}/contents/${pid}/children?limit=100`) as { results: ApiContent[] };
+      for (const c of children.results) {
+        all.push(c);
+        if (c.hasChildren && c.contentHandler?.id === 'resource/x-bb-folder') {
+          queue.push(c.id);
+        }
+      }
+    } catch (e) {
+      // Some folders may not have accessible children, skip
+    }
+  }
+
+  return all;
+}
+
 export function registerMaterials(program: Command): void {
   program
     .command('materials <course-id>')
@@ -85,8 +111,7 @@ export function registerMaterials(program: Command): void {
     .option('--json', 'Output as JSON')
     .option('--download <content-id>', 'Download specific file')
     .action(async (courseId: string, opts: OutputOptions & { download?: string }) => {
-      const data = await apiGet(`/learn/api/public/v1/courses/${courseId}/contents?recursive=true`) as { results: ApiContent[] };
-      const items = data.results;
+      const items = await fetchAllContents(courseId);
 
       if (opts.download) {
         const url = await resolveDownloadUrl(courseId, opts.download);
